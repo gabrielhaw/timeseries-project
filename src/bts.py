@@ -10,7 +10,7 @@ from statsmodels.tsa.stattools import adfuller
 from statsmodels.tsa.seasonal import seasonal_decompose
 
 
-def preproc(csv_path, verbose=True): 
+def preproc(csv_path, drop=False, verbose=True): 
     """Process the household power consumption data"""
 
     # Load CSV
@@ -38,7 +38,8 @@ def preproc(csv_path, verbose=True):
         print(f"Percentage of missing data: {pct_missing:.3f}%")
 
     # Remove all remaining missing rows (best choice for electricity data)
-    df = df.dropna()
+    if drop: 
+        df = df.dropna()
 
     # Remove spikes / extreme outliers
     df = df.clip(lower=df.quantile(0.01), upper=df.quantile(0.99), axis=1)
@@ -50,7 +51,7 @@ def resample(df, time="none"):
     """function that resamples the data to a coarser res"""
     # Resample if requested, and fill missing values
     if time == 'hourly':
-        df = df.resample("H").mean().interpolate().bfill().ffill()
+        df = df.resample("h").mean().interpolate().bfill().ffill()
     elif time == 'daily':
         df = df.resample("D").mean().interpolate().bfill().ffill()
     elif time == 'monthly':
@@ -180,6 +181,53 @@ def plot_seasonal_decompose(result, model='additive', title="Seasonal Decomposit
     plt.tight_layout(rect=[0, 0.03, 1, 0.95])
 
     plt.show()
+
+def stationarity_subplots(df, windowsize=24):
+    """function to plot the rolling mean and std, along with a dickey fuller stationarity test"""
+    # extract vars
+    variables = df.columns
+    n_vars = len(variables)
+
+    # subplot grid layout
+    rows = (n_vars + 1) // 2
+    fig, axes = plt.subplots(rows, 2, figsize=(16, 4 * rows))
+    axes = axes.flatten()
+
+    adf_results = {}
+
+    for i, var in enumerate(variables):
+        ts = df[var].dropna()
+
+        # rolling mean/std
+        rolling_mean = ts.rolling(window=windowsize).mean()
+        rolling_std = ts.rolling(window=windowsize).std()
+
+        # plot original + rolling stats
+        axes[i].plot(ts, color='blue', label='Original')
+        axes[i].plot(rolling_mean, color='green', label='Rolling Mean')
+        axes[i].plot(rolling_std, color='red', label='Rolling Std')
+        axes[i].set_title(f'{var} — Stationarity Test')
+        axes[i].set_xlabel("Time")
+        axes[i].set_ylabel(var)
+        axes[i].legend()
+
+        # ADF test
+        adf = adfuller(ts)
+        adf_results[var] = {
+            "ADF Statistic": adf[0],
+            "p-value": adf[1],
+            "lags used": adf[2],
+            "n obs": adf[3]
+        }
+
+    # Hide extra subplot if number of variables is odd
+    for j in range(i+1, len(axes)):
+        fig.delaxes(axes[j])
+
+    plt.tight_layout()
+    plt.show()
+
+    return pd.DataFrame(adf_results).T
 
 
 def feature_eng(df, var='Global_active_power', rollingw=False, lags=False, time='hourly'):
