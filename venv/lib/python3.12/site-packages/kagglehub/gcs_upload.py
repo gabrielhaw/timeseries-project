@@ -7,15 +7,16 @@ import zipfile
 from collections.abc import Iterable, Sequence
 from datetime import datetime
 from tempfile import TemporaryDirectory
-from typing import Optional, Union
 
 import requests
+from kagglesdk.blobs.types.blob_api_service import ApiBlobType, ApiStartBlobUploadRequest
+from kagglesdk.datasets.types.dataset_api_service import ApiDatasetNewFile, ApiUploadDirectoryInfo
 from requests.exceptions import Timeout
 from tqdm import tqdm
 from tqdm.utils import CallbackIOWrapper
 
-from kagglehub.clients import KaggleApiV1Client
-from kagglehub.exceptions import BackendError
+from kagglehub.clients import build_kaggle_client
+from kagglehub.exceptions import BackendError, handle_call
 
 logger = logging.getLogger(__name__)
 
@@ -29,22 +30,27 @@ class UploadDirectoryInfo:
     def __init__(
         self,
         name: str,
-        files: Optional[list[str]] = None,
-        directories: Optional[list["UploadDirectoryInfo"]] = None,
+        files: list[str] | None = None,
+        directories: list["UploadDirectoryInfo"] | None = None,
     ):
         self.name = name
         self.files = files if files is not None else []
         self.directories = directories if directories is not None else []
 
-    def serialize(self) -> dict:
-        return {
-            "name": self.name,
-            "files": [{"token": file} for file in self.files],
-            "directories": [directory.serialize() for directory in self.directories],
-        }
+    def to_proto(self) -> ApiUploadDirectoryInfo:
+        d = ApiUploadDirectoryInfo()
+        d.name = self.name
+        d.files = []
+        for file in self.files:
+            f = ApiDatasetNewFile()
+            f.token = file
+            d.files.append(f)
+        d.directories = [d.to_proto() for d in self.directories]
+
+        return d
 
 
-def parse_datetime_string(string: str) -> Union[datetime, str]:
+def parse_datetime_string(string: str) -> datetime | str:
     time_formats = ["%Y-%m-%dT%H:%M:%S", "%Y-%m-%dT%H:%M:%SZ", "%Y-%m-%dT%H:%M:%S.%f", "%Y-%m-%dT%H:%M:%S.%fZ"]
     for t in time_formats:
         try:
@@ -118,7 +124,7 @@ def _check_uploaded_size(session_uri: str, file_size: int, backoff_factor: int =
     return 0  # Return 0 if all retries fail
 
 
-def _upload_blob(file_path: str, item_type: str) -> str:
+def _upload_blob(file_path: str, item_type: ApiBlobType) -> str:
     """Uploads a file to a remote server as a blob and returns an upload token.
 
     Args:
@@ -129,24 +135,15 @@ def _upload_blob(file_path: str, item_type: str) -> str:
         A str token of uploaded blob.
     """
     file_size = os.path.getsize(file_path)
-    data = {
-        "type": item_type,
-        "name": os.path.basename(file_path),
-        "contentLength": file_size,
-        "lastModifiedEpochSeconds": int(os.path.getmtime(file_path)),
-    }
-    api_client = KaggleApiV1Client()
-    response = api_client.post("/blobs/upload", data=data)
+    with build_kaggle_client() as api_client:
+        r = ApiStartBlobUploadRequest()
+        r.type = item_type
+        r.name = os.path.basename(file_path)
+        r.content_length = file_size
+        r.last_modified_epoch_seconds = int(os.path.getmtime(file_path))
+        response = handle_call(lambda: api_client.blobs.blob_api_client.start_blob_upload(r))
 
-    # Validate response content
-    if "createUrl" not in response:
-        create_url_exception = "'createUrl' field missing from response"
-        raise BackendError(create_url_exception)
-    if "token" not in response:
-        token_exception = "'token' field missing from response"
-        raise BackendError(token_exception)
-
-    session_uri = response["createUrl"]
+    session_uri = response.create_url
     headers = {"Content-Type": "application/octet-stream"}
 
     retry_count = 0
@@ -169,7 +166,7 @@ def _upload_blob(file_path: str, item_type: str) -> str:
                 upload_response = requests.put(session_uri, headers=headers, data=upload_data, timeout=REQUEST_TIMEOUT)
 
                 if upload_response.status_code in [200, 201]:
-                    return response["token"]
+                    return response.token
                 elif upload_response.status_code == 308:  # Resume Incomplete # noqa: PLR2004
                     uploaded_bytes = _check_uploaded_size(session_uri, file_size)
                 else:
@@ -185,14 +182,14 @@ def _upload_blob(file_path: str, item_type: str) -> str:
                 uploaded_bytes = _check_uploaded_size(session_uri, file_size)
                 pbar.n = uploaded_bytes  # Update progress bar to reflect actual uploaded bytes
 
-    return response["token"]
+    return response.token
 
 
 def upload_files_and_directories(
     folder: str,
     *,
     ignore_patterns: Sequence[str],
-    item_type: str,
+    item_type: ApiBlobType,
     quiet: bool = False,
 ) -> UploadDirectoryInfo:
     # Count the total number of files
@@ -254,7 +251,7 @@ def upload_files_and_directories(
     return root_dict
 
 
-def _upload_file(file_path: str, *, quiet: bool, item_type: str) -> Optional[str]:
+def _upload_file(file_path: str, *, quiet: bool, item_type: ApiBlobType) -> str | None:
     """Helper function to upload a single file.
 
     Args:
@@ -280,7 +277,7 @@ def _upload_file(file_path: str, *, quiet: bool, item_type: str) -> Optional[str
     return token
 
 
-def normalize_patterns(*, default: list[str], additional: Optional[Union[list[str], str]]) -> list[str]:
+def normalize_patterns(*, default: list[str], additional: list[str] | str | None) -> list[str]:
     """Merges additional patterns with the default, and normalize the dir pattern with wildcard."""
 
     def add_wildcard_to_dir(pattern: str) -> str:

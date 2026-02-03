@@ -1,5 +1,6 @@
 import logging
-from typing import Optional, Union
+
+from kagglesdk.blobs.types.blob_api_service import ApiBlobType
 
 from kagglehub import registry
 from kagglehub.gcs_upload import normalize_patterns, upload_files_and_directories
@@ -16,9 +17,9 @@ DEFAULT_IGNORE_PATTERNS = [".git/", "*/.git/", ".cache/", ".huggingface/"]
 
 def model_download(
     handle: str,
-    path: Optional[str] = None,
+    path: str | None = None,
     *,
-    force_download: Optional[bool] = False,
+    force_download: bool | None = False,
 ) -> str:
     """Download model files.
 
@@ -39,11 +40,11 @@ def model_download(
 def model_upload(
     handle: str,
     local_model_dir: str,
-    license_name: Optional[str] = None,
+    license_name: str | None = None,
     version_notes: str = "",
-    ignore_patterns: Optional[Union[list[str], str]] = None,
+    ignore_patterns: list[str] | str | None = None,
     *,
-    sigstore: Optional[bool] = False,
+    sigstore: bool | None = False,
 ) -> None:
     """Upload model files.
 
@@ -87,7 +88,7 @@ def model_upload(
     # Upload the model files to GCS
     tokens = upload_files_and_directories(
         local_model_dir,
-        item_type="model",
+        item_type=ApiBlobType.MODEL,
         ignore_patterns=normalize_patterns(default=DEFAULT_IGNORE_PATTERNS, additional=ignore_patterns),
     )
 

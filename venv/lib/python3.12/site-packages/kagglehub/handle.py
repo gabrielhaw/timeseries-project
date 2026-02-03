@@ -2,9 +2,11 @@
 
 import abc
 from dataclasses import asdict, dataclass
-from typing import Optional
 
-from kagglehub.config import get_kaggle_api_endpoint
+from kagglesdk.kaggle_env import get_endpoint, get_env
+from kagglesdk.models.types.model_enums import ModelFramework
+
+from kagglehub.enum import to_enum
 
 NUM_VERSIONED_DATASET_PARTS = 4  # e.g.: <owner>/<dataset>/versions/<version>
 NUM_UNVERSIONED_DATASET_PARTS = 2  # e.g.: <owner>/<dataset>
@@ -31,7 +33,7 @@ class ModelHandle(ResourceHandle):
     model: str
     framework: str
     variation: str
-    version: Optional[int]
+    version: int | None
 
     def is_versioned(self) -> bool:
         return self.version is not None and self.version > 0
@@ -41,6 +43,9 @@ class ModelHandle(ResourceHandle):
             owner=self.owner, model=self.model, framework=self.framework, variation=self.variation, version=version
         )
 
+    def framework_enum(self) -> ModelFramework:
+        return to_enum(ModelFramework, self.framework)
+
     def __str__(self) -> str:
         handle_str = f"{self.owner}/{self.model}/{self.framework}/{self.variation}"
         if self.is_versioned():
@@ -48,7 +53,7 @@ class ModelHandle(ResourceHandle):
         return handle_str
 
     def to_url(self) -> str:
-        endpoint = get_kaggle_api_endpoint()
+        endpoint = get_endpoint(get_env())
         if self.is_versioned():
             return f"{endpoint}/models/{self.owner}/{self.model}/{self.framework}/{self.variation}/{self.version}"
         else:
@@ -59,7 +64,7 @@ class ModelHandle(ResourceHandle):
 class DatasetHandle(ResourceHandle):
     owner: str
     dataset: str
-    version: Optional[int] = None
+    version: int | None = None
 
     def is_versioned(self) -> bool:
         return self.version is not None and self.version > 0
@@ -74,7 +79,7 @@ class DatasetHandle(ResourceHandle):
         return handle_str
 
     def to_url(self) -> str:
-        endpoint = get_kaggle_api_endpoint()
+        endpoint = get_endpoint(get_env())
         base_url = f"{endpoint}/datasets/{self.owner}/{self.dataset}"
         if self.is_versioned():
             return f"{base_url}/versions/{self.version}"
@@ -90,7 +95,7 @@ class CompetitionHandle(ResourceHandle):
         return handle_str
 
     def to_url(self) -> str:
-        endpoint = get_kaggle_api_endpoint()
+        endpoint = get_endpoint(get_env())
         base_url = f"{endpoint}/competitions/{self.competition}"
         return base_url
 
@@ -99,7 +104,7 @@ class CompetitionHandle(ResourceHandle):
 class NotebookHandle(ResourceHandle):
     owner: str
     notebook: str
-    version: Optional[int] = None
+    version: int | None = None
 
     def is_versioned(self) -> bool:
         return self.version is not None and self.version > 0
@@ -114,7 +119,7 @@ class NotebookHandle(ResourceHandle):
         return handle_str
 
     def to_url(self) -> str:
-        endpoint = get_kaggle_api_endpoint()
+        endpoint = get_endpoint(get_env())
         base_url = f"{endpoint}/code/{self.owner}/{self.notebook}"
         if self.is_versioned():
             return f"{base_url}/versions/{self.version}"

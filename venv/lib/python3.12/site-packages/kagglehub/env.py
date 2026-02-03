@@ -1,13 +1,10 @@
 import functools
 import inspect
 import logging
-import os
 from importlib import metadata  # type: ignore
-from typing import Optional
 
 KAGGLE_NOTEBOOK_ENV_VAR_NAME = "KAGGLE_KERNEL_RUN_TYPE"
 KAGGLE_DATA_PROXY_URL_ENV_VAR_NAME = "KAGGLE_DATA_PROXY_URL"
-KAGGLE_TOKEN_KEY_DIR_ENV_VAR_NAME = "KAGGLE_API_V1_TOKEN"
 
 logger = logging.getLogger(__name__)
 
@@ -25,19 +22,6 @@ def is_in_colab_notebook() -> bool:
     return _is_google_colab
 
 
-def is_in_kaggle_notebook() -> bool:
-    if os.getenv(KAGGLE_NOTEBOOK_ENV_VAR_NAME) is not None:
-        if os.getenv(KAGGLE_DATA_PROXY_URL_ENV_VAR_NAME) is None:
-            # Missing endpoint for the Jwt client
-            logging.warning(
-                "Can't use the Kaggle Cache. "
-                f"The '{KAGGLE_DATA_PROXY_URL_ENV_VAR_NAME}' environment variable is not set."
-            )
-            return False
-        return True
-    return False
-
-
 @functools.cache
 def read_kaggle_build_date() -> str:
     build_date_file = "/etc/build_date"
@@ -49,7 +33,7 @@ def read_kaggle_build_date() -> str:
         return "unknown"
 
 
-def search_lib_in_call_stack(lib_name: str) -> Optional[str]:
+def search_lib_in_call_stack(lib_name: str) -> str | None:
     """Search the call stack for a given library name and get its information.
 
     Args:

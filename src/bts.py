@@ -10,7 +10,7 @@ from statsmodels.tsa.stattools import adfuller
 from statsmodels.tsa.seasonal import seasonal_decompose
 
 
-def preproc(csv_path, drop=False, verbose=True): 
+def preproc(csv_path, verbose=True): 
     """Process the household power consumption data"""
 
     # Load CSV
@@ -37,14 +37,9 @@ def preproc(csv_path, drop=False, verbose=True):
     if verbose == True:
         print(f"Percentage of missing data: {pct_missing:.3f}%")
 
-    # Remove all remaining missing rows (best choice for electricity data)
-    if drop: 
-        df = df.dropna()
+    df = df.reset_index() # Hate when its an index
 
-    # Remove spikes / extreme outliers
-    df = df.clip(lower=df.quantile(0.01), upper=df.quantile(0.99), axis=1)
-
-    return df
+    return df 
 
 
 def resample(df, time="none"):
@@ -54,6 +49,8 @@ def resample(df, time="none"):
         df = df.resample("h").mean().interpolate().bfill().ffill()
     elif time == 'daily':
         df = df.resample("D").mean().interpolate().bfill().ffill()
+    elif time == 'weekly':
+        df = df.resample("W").mean().interpolate().bfill().ffill()
     elif time == 'monthly':
         df = df.resample("M").mean().interpolate().bfill().ffill()
 
@@ -73,49 +70,10 @@ def plot_df(df, x, y, title="", xlabel='Date', ylabel='Number of Passengers', dp
     plt.ylim(-y.max(), y.max())
     plt.title(f'{title} (Two Side View)')
     plt.hlines(y=0, xmin=np.min(df.index), xmax=np.max(df.index), linewidth=.5)
-    plt.show()
-
-
-def normalisation(df, method):
-    """
-    Perform normalisation on df using the specified method.
-    Options:
-        - 'log'     : log10 transform with epsilon
-        - 'zscore'  : StandardScaler (mean 0, std 1)
-        - 'minmax'  : Min-max scaling to [0, 1]
-        - 'none'    : return original df
-    """
-
-    df = df.copy()
-
-    # normalisation strategies
-    if method == "log":
-        epsilon = 1e-12
-        df = np.log10(df + epsilon)
-    
-    elif method == "zscore":
-        scaler = StandardScaler()
-        df = pd.DataFrame(scaler.fit_transform(df), columns=df.columns)
-
-    elif method == "minmax":
-        scaler = MinMaxScaler()
-        df = pd.DataFrame(scaler.fit_transform(df), columns=df.columns)
-
-    elif method == "none":
-        return df
-
-    else:
-        raise ValueError("Invalid method. Choose 'log', 'zscore', 'minmax', or 'none'.")
-
-    df = df
-    return df
-    
+    plt.show()    
 
 def stationarity(df): 
     """Determine if stationarity exists in the data using dickey-fuller test"""
-    
-    if df is None:
-        raise ValueError("Run preproc() before stationarity testing.")
 
     results = []
 
@@ -125,18 +83,15 @@ def stationarity(df):
         # stationary test
         res = adfuller(series)
 
+        # take the adf and p-value
         adf_stat = res[0]
         p_value = res[1]
-        crit_vals = res[4]
         
         # results
         results.append({
             "Variable": col,
             "ADF Statistic": adf_stat,
             "p-value": p_value,
-            "1% Critical": crit_vals["1%"],
-            "5% Critical": crit_vals["5%"],
-            "10% Critical": crit_vals["10%"],
             "Stationary": "Yes" if p_value < 0.05 else "No"
         })
     
@@ -198,7 +153,7 @@ def stationarity_subplots(df, windowsize=24):
     for i, var in enumerate(variables):
         ts = df[var].dropna()
 
-        # rolling mean/std
+        # rolling mean/std 
         rolling_mean = ts.rolling(window=windowsize).mean()
         rolling_std = ts.rolling(window=windowsize).std()
 
@@ -210,15 +165,6 @@ def stationarity_subplots(df, windowsize=24):
         axes[i].set_xlabel("Time")
         axes[i].set_ylabel(var)
         axes[i].legend()
-
-        # ADF test
-        adf = adfuller(ts)
-        adf_results[var] = {
-            "ADF Statistic": adf[0],
-            "p-value": adf[1],
-            "lags used": adf[2],
-            "n obs": adf[3]
-        }
 
     # Hide extra subplot if number of variables is odd
     for j in range(i+1, len(axes)):
