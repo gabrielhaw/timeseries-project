@@ -3,7 +3,6 @@
 A comprehensive time series analysis project exploring household electricity consumption patterns using the [Household Electricity Consumption dataset](https://www.kaggle.com/datasets/thedevastator/240000-household-electricity-consumption-records) from Kaggle. This project demonstrates data preprocessing, exploratory data analysis, stationarity testing, seasonal decomposition, and forecasting model comparisons.
 
 ![Python](https://img.shields.io/badge/python-3.8+-blue.svg)
-![License](https://img.shields.io/badge/license-MIT-green.svg)
 
 ---
 
@@ -257,22 +256,22 @@ For operational systems (load forecasting, cost optimization):
 
 ---
 
-## � Visualizations
+## 📊 Model Visualizations
+
+### Model Comparison: RMSE & MSE
+Comparison of all 5 models across key error metrics:
+
+![Model Comparison](docs/model_comparison_rmse_mse.png)
 
 ### Actual vs Predicted Performance
-Both ML models track actual consumption closely, with XGBoost showing slightly tighter fit:
+Shows how Random Forest and XGBoost predictions track actual consumption on the test set:
 
-<img src="docs/actual_vs_predicted.png" alt="Actual vs Predicted" width="800"/>
+![Actual vs Predicted](docs/actual_vs_predicted.png)
 
 ### Feature Importance Analysis
-Global intensity dominates predictions (~98% importance), reflecting the physical relationship between power and current:
+Displays the top 10 features driving predictions for each model:
 
-<img src="docs/feature_importance.png" alt="Feature Importance" width="800"/>
-
-### Residual Analysis
-Residuals are well-distributed around zero with no systematic patterns, indicating good model fit:
-
-<img src="docs/residual_analysis.png" alt="Residual Analysis" width="800"/>
+![Feature Importance](docs/feature_importance.png)
 
 ---
 
@@ -402,8 +401,4 @@ jupyter notebook notebooks/pipeline.ipynb
 
 Feel free to reach out for questions or collaboration opportunities.
 
----
 
-## 📄 License
-
-This project is open source and available under the MIT License.
