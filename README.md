@@ -29,7 +29,7 @@ After that I moved to Random Forest and XGBoost. First time I ran those, they sc
 
 The tell was in the correlations - `Global_intensity` had a 0.9995 correlation with the target. A correlation that close to 1 between two physically-linked measurements means you're not looking at a prediction, you're looking at arithmetic.
 
-So I dropped all six of those leaky columns (`Global_reactive_power`, `Voltage`, `Global_intensity`, `Sub_metering_1/2/3`) and only kept stuff you'd actually know ahead of time — day of the week, day of the month, month, whether it's a weekend, past values (1, 3, 7 days back), and rolling averages/std at 3/7/14 days. 13 features in total.
+So I dropped all six of those leaky columns (`Global_reactive_power`, `Voltage`, `Global_intensity`, `Sub_metering_1/2/3`) and only kept stuff you'd actually know ahead of time - day of the week, day of the month, month, whether it's a weekend, past values (1, 3, 7 days back), and rolling averages/std at 3/7/14 days. 13 features in total.
 
 Once I did that, the scores dropped back down to something realistic. That's expected, the model went from "cheating" to actually trying to find real patterns. I also threw a plain Decision Tree into the mix on the same clean features, mostly as a sanity check against the ensembles.
 
