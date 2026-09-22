@@ -21,7 +21,7 @@ There's also a strong "yesterday predicts today" pattern (autocorrelation at lag
 
 For the actual forecasting, I started with a dumb baseline: just guess that tomorrow will be the same as today (persistence). That got a **Test R² of -0.7128** (MAE 0.2997 kW, RMSE 0.3899 kW), which sounds bad, but it's actually useful info; a negative R² means even just guessing the average would beat this. It tells you the data is genuinely noisy and hard to predict.
 
-Then I tried SARIMA(1,1,1)(1,1,1,20) on voltage and got MAE 0.449 / RMSE 0.584 — a modest result, nothing dramatic.
+Then I tried SARIMA(1,1,1)(1,1,1,20) on voltage and got MAE 0.449 / RMSE 0.584 - a modest result, nothing dramatic.
 
 ### The data leakage trap
 
