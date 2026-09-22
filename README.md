@@ -1,4 +1,4 @@
-# Household Electricity Consumption — Time Series Analysis
+# Household Electricity Consumption - Time Series Analysis
 
 This is a project where I tried to predict how much electricity a household uses per day, using [this Kaggle dataset](https://www.kaggle.com/datasets/thedevastator/240000-household-electricity-consumption-records); about 2 million minute-by-minute readings from one house, from 2006 to 2010.
 
